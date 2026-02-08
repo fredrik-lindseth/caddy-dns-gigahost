@@ -62,9 +62,9 @@ type authRequest struct {
 
 // authData is the "data" payload returned from POST /authenticate.
 type authData struct {
-	Token       string `json:"token"`
-	TokenExpire int64  `json:"token_expire"`
-	CustomerID  int    `json:"customer_id"`
+	Token       string          `json:"token"`
+	TokenExpire int64           `json:"token_expire"`
+	CustomerID  json.RawMessage `json:"customer_id"` // may be int or string depending on API version
 }
 
 // ghZone represents a zone object from GET /dns/zones.

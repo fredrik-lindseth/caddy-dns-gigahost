@@ -1,4 +1,4 @@
-module github.com/caddy-dns/gigahost
+module github.com/fredrik-lindseth/caddy-dns-gigahost
 
 go 1.24
 

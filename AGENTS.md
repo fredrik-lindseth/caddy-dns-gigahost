@@ -74,6 +74,12 @@ The token is then sent as `Authorization: Bearer <token>` on all subsequent requ
 5. **Do NOT enable 2FA** for this user
 6. Use this user's credentials in Caddy configuration
 
+### Known API quirks
+
+- **Zone creation** uses `zone_name` as the field name (not `name` or `zone`): `POST /dns/zones {"zone_name": "example.no"}`. Not used by the Caddy module (it only manages records), but relevant if extending the code.
+- **DELETE may silently no-op**: `DELETE /dns/zones/{id}/records/{record_id}` can return 200 "Record deleted successfully" but the record remains. This seems to happen with default/protected records. The code does not verify deletion after the fact.
+- **`customer_id` type varies**: The `/authenticate` response returns `customer_id` as a number, but it may appear as a string in other contexts. The code uses `json.RawMessage` to avoid type mismatch.
+
 ## How to work with this code
 
 ### Build and test
@@ -89,7 +95,7 @@ go vet ./...                     # Static analysis
 
 ```bash
 # Install xcaddy first: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
-xcaddy build --with github.com/caddy-dns/gigahost@master
+xcaddy build --with github.com/fredrik-lindseth/caddy-dns-gigahost@master
 ```
 
 ### Docker

@@ -3,7 +3,7 @@ package gigahost
 import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
-	ghprovider "github.com/caddy-dns/gigahost/provider"
+	ghprovider "github.com/fredrik-lindseth/caddy-dns-gigahost/provider"
 )
 
 // Provider wraps the Gigahost provider implementation as a Caddy module.

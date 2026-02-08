@@ -6,7 +6,7 @@ import (
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
-	ghprovider "github.com/caddy-dns/gigahost/provider"
+	ghprovider "github.com/fredrik-lindseth/caddy-dns-gigahost/provider"
 )
 
 func TestCaddyModule(t *testing.T) {

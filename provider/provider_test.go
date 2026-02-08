@@ -71,7 +71,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 		data := authData{
 			Token:       "test-token-abc123",
 			TokenExpire: time.Now().Add(1 * time.Hour).Unix(),
-			CustomerID:  1,
+			CustomerID:  json.RawMessage(`1`),
 		}
 		writeAPIResponse(w, 200, "ok", data)
 	})
@@ -258,7 +258,7 @@ func TestAuthenticateWithTOTP(t *testing.T) {
 		data := authData{
 			Token:       "totp-token-xyz",
 			TokenExpire: time.Now().Add(1 * time.Hour).Unix(),
-			CustomerID:  1,
+			CustomerID:  json.RawMessage(`1`),
 		}
 		writeAPIResponse(w, 200, "ok", data)
 	})

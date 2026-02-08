@@ -18,6 +18,12 @@ ns2.gigahost.no
 ns3.gigahost.no
 ```
 
+## Prerequisites
+
+Your domain's DNS zone must already exist in Gigahost before Caddy can manage its records. This module creates and deletes DNS _records_ — it does not create zones.
+
+If you haven't already, add your domain as a DNS zone in the [Gigahost control panel](https://flux.gigahost.no) (under **DNS** → **Add zone**), and point your domain's name servers to Gigahost (see above).
+
 ## Config examples
 
 To use this module for the ACME DNS challenge, [configure the ACME issuer in your Caddy JSON](https://caddyserver.com/docs/json/apps/tls/automation/policies/issuer/acme/) like so:
@@ -121,5 +127,5 @@ Then build Caddy:
 
 ```bash
 xcaddy build \
-    --with github.com/caddy-dns/gigahost@master
+    --with github.com/fredrik-lindseth/caddy-dns-gigahost@master
 ```
