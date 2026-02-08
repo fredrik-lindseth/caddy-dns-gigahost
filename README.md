@@ -8,6 +8,16 @@ This package contains a DNS provider module for [Caddy](https://github.com/caddy
 dns.providers.gigahost
 ```
 
+## Gigahost name servers
+
+If you're pointing your domain to Gigahost, use the following name servers:
+
+```
+ns1.gigahost.no
+ns2.gigahost.no
+ns3.gigahost.no
+```
+
 ## Config examples
 
 To use this module for the ACME DNS challenge, [configure the ACME issuer in your Caddy JSON](https://caddyserver.com/docs/json/apps/tls/automation/policies/issuer/acme/) like so:
@@ -45,7 +55,38 @@ You can replace the environment variable placeholders with actual values if you 
 
 ## Authenticating
 
-This module uses Gigahost account credentials (username and password) to authenticate with the [Gigahost API](https://gigahost.no/api-dokumentasjon). If your account has two-factor authentication enabled, you can also provide a TOTP code:
+This module authenticates with the [Gigahost API](https://gigahost.no/api-dokumentasjon) using your regular Gigahost account credentials — the same username and password you use to log in to [flux.gigahost.no](https://flux.gigahost.no). The Gigahost API does not have separate API keys; it uses your account credentials directly.
+
+The module sends a `POST` to `/authenticate` with your credentials and receives a bearer token that is cached and automatically refreshed before it expires.
+
+### Basic setup (recommended)
+
+```
+tls {
+    dns gigahost {
+        username {env.GIGAHOST_USERNAME}
+        password {env.GIGAHOST_PASSWORD}
+    }
+}
+```
+
+### Creating a dedicated API user (best practice)
+
+For production use, create a dedicated Gigahost contact/user without 2FA:
+
+1. Log in to [flux.gigahost.no](https://flux.gigahost.no)
+2. Go to **Account** → **Contacts**
+3. Click **Add new user**
+4. Fill in:
+   - **Name**: e.g., "Caddy DNS API"
+   - **Email**: a valid email address
+   - **Access level**: Select **Administrator** (required for DNS API access)
+5. **Do NOT enable 2FA** for this user
+6. Use this user's credentials in your Caddy configuration
+
+### With two-factor authentication
+
+If your Gigahost account has 2FA enabled, you can provide a TOTP code:
 
 ```
 tls {
@@ -57,8 +98,9 @@ tls {
 }
 ```
 
-**Note:** TOTP codes are time-based and expire quickly. For automated setups, consider using an API-compatible TOTP generator or disabling 2FA for the API account.
-
+> **⚠️ 2FA is problematic for automated setups.** TOTP codes rotate every 30 seconds. Caddy runs as a long-lived daemon and needs to re-authenticate whenever the token expires. This means you would need a way to continuously generate fresh TOTP codes and feed them to Caddy, which is impractical for most setups.
+>
+> **Recommended approach:** Use a dedicated API user without 2FA (see "Creating a dedicated API user" above).
 ## Building
 
 ### Build a Caddy Docker image
