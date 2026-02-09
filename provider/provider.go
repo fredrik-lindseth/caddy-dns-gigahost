@@ -69,8 +69,8 @@ type authData struct {
 
 // ghZone represents a zone object from GET /dns/zones.
 type ghZone struct {
-	ZoneID   int    `json:"zone_id"`
-	ZoneName string `json:"zone_name"`
+	ZoneID   json.Number `json:"zone_id"` // API returns string or int depending on version
+	ZoneName string      `json:"zone_name"`
 }
 
 // ghRecord represents a DNS record from the Gigahost API.
@@ -211,33 +211,33 @@ func (p *Provider) doRequest(ctx context.Context, method, url string, body inter
 
 // getZoneID finds the zone_id for the given zone name by listing all zones.
 // The zone parameter is an FQDN with trailing dot (e.g. "example.com.").
-func (p *Provider) getZoneID(ctx context.Context, zone string) (int, error) {
+func (p *Provider) getZoneID(ctx context.Context, zone string) (string, error) {
 	zoneName := strings.TrimSuffix(zone, ".")
 
 	apiResp, err := p.doRequest(ctx, http.MethodGet, baseURL+"/dns/zones", nil)
 	if err != nil {
-		return 0, fmt.Errorf("gigahost: list zones: %w", err)
+		return "", fmt.Errorf("gigahost: list zones: %w", err)
 	}
 
 	var zones []ghZone
 	if err := json.Unmarshal(apiResp.Data, &zones); err != nil {
-		return 0, fmt.Errorf("gigahost: decode zones: %w", err)
+		return "", fmt.Errorf("gigahost: decode zones: %w", err)
 	}
 
 	for _, z := range zones {
 		if strings.EqualFold(z.ZoneName, zoneName) {
-			return z.ZoneID, nil
+			return z.ZoneID.String(), nil
 		}
 	}
 
-	return 0, fmt.Errorf("gigahost: zone %q not found", zoneName)
+	return "", fmt.Errorf("gigahost: zone %q not found", zoneName)
 }
 
 // ---------- Record fetching ----------
 
 // fetchRecords retrieves all DNS records for the given zone ID.
-func (p *Provider) fetchRecords(ctx context.Context, zoneID int) ([]ghRecord, error) {
-	url := fmt.Sprintf("%s/dns/zones/%d/records", baseURL, zoneID)
+func (p *Provider) fetchRecords(ctx context.Context, zoneID string) ([]ghRecord, error) {
+	url := fmt.Sprintf("%s/dns/zones/%s/records", baseURL, zoneID)
 	apiResp, err := p.doRequest(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -459,7 +459,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns
 	// Create each record.
 	for _, rec := range recs {
 		ghReq := toGhRecordRequest(rec)
-		url := fmt.Sprintf("%s/dns/zones/%d/records", baseURL, zoneID)
+		url := fmt.Sprintf("%s/dns/zones/%s/records", baseURL, zoneID)
 		_, err := p.doRequest(ctx, http.MethodPost, url, ghReq)
 		if err != nil {
 			return nil, fmt.Errorf("gigahost: create record %+v: %w", rec.RR(), err)
@@ -525,7 +525,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 
 		if match != nil {
 			// Update existing record.
-			url := fmt.Sprintf("%s/dns/zones/%d/records/%s", baseURL, zoneID, match.RecordID)
+			url := fmt.Sprintf("%s/dns/zones/%s/records/%s", baseURL, zoneID, match.RecordID)
 			apiResp, err := p.doRequest(ctx, http.MethodPut, url, ghReq)
 			if err != nil {
 				return nil, fmt.Errorf("gigahost: update record %s: %w", match.RecordID, err)
@@ -557,7 +557,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 			}
 		} else {
 			// Create new record. POST doesn't return the ID, so we'll need to re-fetch.
-			url := fmt.Sprintf("%s/dns/zones/%d/records", baseURL, zoneID)
+			url := fmt.Sprintf("%s/dns/zones/%s/records", baseURL, zoneID)
 			_, err := p.doRequest(ctx, http.MethodPost, url, ghReq)
 			if err != nil {
 				return nil, fmt.Errorf("gigahost: create record %+v: %w", rec.RR(), err)
@@ -642,7 +642,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 
 		for _, match := range matches {
 			// Build the DELETE URL with required query parameters.
-			deleteURL := fmt.Sprintf("%s/dns/zones/%d/records/%s?name=%s&type=%s",
+			deleteURL := fmt.Sprintf("%s/dns/zones/%s/records/%s?name=%s&type=%s",
 				baseURL, zoneID, match.RecordID,
 				match.RecordName, match.RecordType)
 

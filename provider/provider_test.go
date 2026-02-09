@@ -18,7 +18,7 @@ import (
 
 const testZone = "example.no."
 const testZoneName = "example.no"
-const testZoneID = 42
+const testZoneID = "42"
 
 // testRecords returns a realistic set of DNS records for the test zone.
 func testRecords() []ghRecord {
@@ -79,8 +79,8 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 	// GET /api/v0/dns/zones
 	mux.HandleFunc("GET /api/v0/dns/zones", func(w http.ResponseWriter, r *http.Request) {
 		zones := []ghZone{
-			{ZoneID: testZoneID, ZoneName: testZoneName},
-			{ZoneID: 99, ZoneName: "other.no"},
+			{ZoneID: json.Number(testZoneID), ZoneName: testZoneName},
+			{ZoneID: json.Number("99"), ZoneName: "other.no"},
 		}
 		writeAPIResponse(w, 200, "ok", zones)
 	})
@@ -88,7 +88,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 	// GET /api/v0/dns/zones/{id}/records
 	mux.HandleFunc("GET /api/v0/dns/zones/{id}/records", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		if id != fmt.Sprintf("%d", testZoneID) {
+		if id != testZoneID {
 			writeAPIResponse(w, 404, "zone not found", nil)
 			return
 		}
@@ -102,7 +102,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 	// POST /api/v0/dns/zones/{id}/records
 	mux.HandleFunc("POST /api/v0/dns/zones/{id}/records", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		if id != fmt.Sprintf("%d", testZoneID) {
+		if id != testZoneID {
 			writeAPIResponse(w, 404, "zone not found", nil)
 			return
 		}
@@ -131,7 +131,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 	mux.HandleFunc("PUT /api/v0/dns/zones/{id}/records/{record_id}", func(w http.ResponseWriter, r *http.Request) {
 		zoneIDStr := r.PathValue("id")
 		recordID := r.PathValue("record_id")
-		if zoneIDStr != fmt.Sprintf("%d", testZoneID) {
+		if zoneIDStr != testZoneID {
 			writeAPIResponse(w, 404, "zone not found", nil)
 			return
 		}
@@ -165,7 +165,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 	mux.HandleFunc("DELETE /api/v0/dns/zones/{id}/records/{record_id}", func(w http.ResponseWriter, r *http.Request) {
 		zoneIDStr := r.PathValue("id")
 		recordID := r.PathValue("record_id")
-		if zoneIDStr != fmt.Sprintf("%d", testZoneID) {
+		if zoneIDStr != testZoneID {
 			writeAPIResponse(w, 404, "zone not found", nil)
 			return
 		}
