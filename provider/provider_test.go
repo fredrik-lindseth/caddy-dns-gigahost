@@ -22,7 +22,7 @@ const testZoneID = "42"
 
 // testRecords returns a realistic set of DNS records for the test zone.
 func testRecords() []ghRecord {
-	mx10 := uint16(10)
+	mx10 := flexUint16(10)
 	return []ghRecord{
 		{RecordID: "101", RecordName: "www", RecordType: "A", RecordValue: "93.184.216.34", RecordTTL: 3600},
 		{RecordID: "102", RecordName: "@", RecordType: "AAAA", RecordValue: "2001:db8::1", RecordTTL: 3600},
@@ -112,13 +112,18 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 			return
 		}
 		state.mu.Lock()
+		var prio *flexUint16
+		if req.RecordPriority != nil {
+			v := flexUint16(*req.RecordPriority)
+			prio = &v
+		}
 		newRec := ghRecord{
 			RecordID:       fmt.Sprintf("%d", state.nextID),
 			RecordName:     req.RecordName,
 			RecordType:     req.RecordType,
 			RecordValue:    req.RecordValue,
 			RecordTTL:      req.RecordTTL,
-			RecordPriority: req.RecordPriority,
+			RecordPriority: prio,
 		}
 		state.nextID++
 		state.records = append(state.records, newRec)
@@ -147,7 +152,8 @@ func setupTestServer(t *testing.T) (*httptest.Server, *Provider, *mockState) {
 				state.records[i].RecordValue = req.RecordValue
 				state.records[i].RecordTTL = req.RecordTTL
 				if req.RecordPriority != nil {
-					state.records[i].RecordPriority = req.RecordPriority
+					v := flexUint16(*req.RecordPriority)
+					state.records[i].RecordPriority = &v
 				}
 				updated = &state.records[i]
 				break
@@ -638,7 +644,7 @@ func TestAppendRecordsMX(t *testing.T) {
 		t.Errorf("expected 1 record in state, got %d", len(state.records))
 	} else {
 		rec := state.records[0]
-		if rec.RecordPriority == nil || *rec.RecordPriority != 20 {
+		if rec.RecordPriority == nil || uint16(*rec.RecordPriority) != 20 {
 			t.Errorf("expected record_priority 20 in state, got %v", rec.RecordPriority)
 		}
 	}
@@ -972,7 +978,7 @@ func TestToLibdnsRecord_CNAME(t *testing.T) {
 }
 
 func TestToLibdnsRecord_MX(t *testing.T) {
-	pref := uint16(10)
+	pref := flexUint16(10)
 	rec := ghRecord{
 		RecordID:       "4",
 		RecordName:     "@",
@@ -1134,6 +1140,55 @@ func TestToGhRecordRequest_EmptyName(t *testing.T) {
 	ghReq := toGhRecordRequest(rec)
 	if ghReq.RecordName != "@" {
 		t.Errorf("expected name '@' for empty input, got %q", ghReq.RecordName)
+	}
+}
+
+// ---------- flexUint16 tests ----------
+
+func TestFlexUint16_UnmarshalNumber(t *testing.T) {
+	var f flexUint16
+	if err := json.Unmarshal([]byte(`10`), &f); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if uint16(f) != 10 {
+		t.Errorf("expected 10, got %d", f)
+	}
+}
+
+func TestFlexUint16_UnmarshalString(t *testing.T) {
+	var f flexUint16
+	if err := json.Unmarshal([]byte(`"10"`), &f); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if uint16(f) != 10 {
+		t.Errorf("expected 10, got %d", f)
+	}
+}
+
+func TestFlexUint16_UnmarshalInRecord(t *testing.T) {
+	// Simulate Gigahost API returning record_priority as string.
+	data := `{"record_id":"42","record_name":"@","record_type":"MX","record_value":"mail.example.no","record_ttl":3600,"record_priority":"10"}`
+	var rec ghRecord
+	if err := json.Unmarshal([]byte(data), &rec); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.RecordPriority == nil {
+		t.Fatal("expected non-nil RecordPriority")
+	}
+	if uint16(*rec.RecordPriority) != 10 {
+		t.Errorf("expected 10, got %d", *rec.RecordPriority)
+	}
+}
+
+func TestFlexUint16_UnmarshalNull(t *testing.T) {
+	// Non-MX records have null/missing record_priority.
+	data := `{"record_id":"1","record_name":"www","record_type":"A","record_value":"1.2.3.4","record_ttl":3600,"record_priority":null}`
+	var rec ghRecord
+	if err := json.Unmarshal([]byte(data), &rec); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rec.RecordPriority != nil {
+		t.Errorf("expected nil RecordPriority, got %v", *rec.RecordPriority)
 	}
 }
 

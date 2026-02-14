@@ -73,14 +73,36 @@ type ghZone struct {
 	ZoneName string      `json:"zone_name"`
 }
 
+// flexUint16 unmarshals from both JSON number and string (e.g., 10 or "10").
+// The Gigahost API returns record_priority as a string in some responses.
+type flexUint16 uint16
+
+func (f *flexUint16) UnmarshalJSON(data []byte) error {
+	var n uint16
+	if err := json.Unmarshal(data, &n); err == nil {
+		*f = flexUint16(n)
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("flexUint16: cannot unmarshal %s", string(data))
+	}
+	v, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return fmt.Errorf("flexUint16: invalid value %q: %w", s, err)
+	}
+	*f = flexUint16(v)
+	return nil
+}
+
 // ghRecord represents a DNS record from the Gigahost API.
 type ghRecord struct {
-	RecordID       string  `json:"record_id"`
-	RecordName     string  `json:"record_name"`
-	RecordType     string  `json:"record_type"`
-	RecordValue    string  `json:"record_value"`
-	RecordTTL      int     `json:"record_ttl"`
-	RecordPriority *uint16 `json:"record_priority"`
+	RecordID       string      `json:"record_id"`
+	RecordName     string      `json:"record_name"`
+	RecordType     string      `json:"record_type"`
+	RecordValue    string      `json:"record_value"`
+	RecordTTL      int         `json:"record_ttl"`
+	RecordPriority *flexUint16 `json:"record_priority"`
 }
 
 // ghRecordRequest is the JSON body for creating or updating a record.
@@ -287,7 +309,7 @@ func toLibdnsRecord(rec ghRecord, zone string) (libdns.Record, error) {
 	case "MX":
 		var pref uint16
 		if rec.RecordPriority != nil {
-			pref = *rec.RecordPriority
+			pref = uint16(*rec.RecordPriority)
 		}
 		return libdns.MX{
 			Name:       name,
@@ -541,13 +563,18 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 				results = append(results, libRec)
 			} else {
 				// If the API doesn't return the full record, construct it from what we know.
+				var prio *flexUint16
+				if ghReq.RecordPriority != nil {
+					v := flexUint16(*ghReq.RecordPriority)
+					prio = &v
+				}
 				updatedGh := ghRecord{
 					RecordID:       match.RecordID,
 					RecordName:     ghReq.RecordName,
 					RecordType:     ghReq.RecordType,
 					RecordValue:    ghReq.RecordValue,
 					RecordTTL:      ghReq.RecordTTL,
-					RecordPriority: ghReq.RecordPriority,
+					RecordPriority: prio,
 				}
 				libRec, err := toLibdnsRecord(updatedGh, zone)
 				if err != nil {
